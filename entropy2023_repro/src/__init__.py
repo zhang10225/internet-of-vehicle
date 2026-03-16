@@ -1,8 +1,8 @@
-"""Clean-room Entropy 2023 reproduction skeleton.
+"""Clean-room Entropy 2023 reproduction skeleton built on Charm-Crypto.
 
-This package reproduces the protocol flow, revocation hooks, and
-benchmarking surfaces needed for a research baseline. It is not a
-paper-exact or production-secure cryptographic implementation.
+This package is a research baseline, not the authors' original code and not a
+production-secure implementation. It uses Charm's pairing group and CP-ABE
+scheme to provide a reproducible protocol flow with revocation hooks.
 """
 
 from .ta import setup, keygen, attr_revoke, revoke_user
@@ -11,6 +11,7 @@ from .rsu import rsu_transform
 from .obu import final_decrypt
 from .types import (
     Certificate,
+    CharmUnavailableError,
     Ciphertext,
     FinalKey,
     IntegrityError,
@@ -35,6 +36,7 @@ __all__ = [
     'attr_revoke',
     'revoke_user',
     'Certificate',
+    'CharmUnavailableError',
     'Ciphertext',
     'FinalKey',
     'IntegrityError',

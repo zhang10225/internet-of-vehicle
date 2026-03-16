@@ -1,9 +1,10 @@
 DEFAULT_SECURITY_PARAM = 'SS512'
 DEFAULT_MESSAGE = b'vehicular data payload'
 DEFAULT_STATIC_ATTRS = ['role:ambulance', 'dept:traffic']
-DEFAULT_DYNAMIC_CONTEXT = {'region:r1', 'timeslot:t1'}
+DEFAULT_DYNAMIC_ATTRS = ['region:r1', 'timeslot:t1']
 DEFAULT_STATIC_POLICY = ['role:ambulance', 'dept:traffic']
 DEFAULT_DYNAMIC_POLICY = ['region:r1', 'timeslot:t1']
 DEFAULT_ATTR_SCALE = [5, 10, 20, 30, 50]
 DEFAULT_BENCH_ROUNDS = 30
 DEFAULT_CERT_VALIDITY = 10_000
+DEFAULT_MESSAGE_SIZE = 128

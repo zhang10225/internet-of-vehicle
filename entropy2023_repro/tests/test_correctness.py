@@ -12,6 +12,7 @@ def test_valid_user_can_decrypt():
         msk,
         uid='veh-001',
         static_attrs=['role:ambulance', 'dept:traffic'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
     )
     ciphertext = encrypt(
         pp,
@@ -33,7 +34,13 @@ def test_valid_user_can_decrypt():
 
 def test_dynamic_policy_mismatch_fails():
     pp, msk = setup()
-    bundle = keygen(pp, msk, uid='veh-002', static_attrs=['role:ambulance', 'dept:traffic'])
+    bundle = keygen(
+        pp,
+        msk,
+        uid='veh-002',
+        static_attrs=['role:ambulance', 'dept:traffic'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
+    )
     ciphertext = encrypt(
         pp,
         message=b'hello-iov',
@@ -56,7 +63,13 @@ def test_dynamic_policy_mismatch_fails():
 
 def test_static_policy_mismatch_fails():
     pp, msk = setup()
-    bundle = keygen(pp, msk, uid='veh-003', static_attrs=['role:ambulance'])
+    bundle = keygen(
+        pp,
+        msk,
+        uid='veh-003',
+        static_attrs=['role:ambulance'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
+    )
     ciphertext = encrypt(
         pp,
         message=b'hello-iov',

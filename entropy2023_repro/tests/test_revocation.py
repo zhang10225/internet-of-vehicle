@@ -3,11 +3,18 @@ from src.ta import attr_revoke, keygen, revoke_user, setup
 from src.scheme import encrypt
 from src.rsu import rsu_transform
 from src.types import PolicyNotSatisfiedError, RevocationState, RevokedAttributeError, RevokedUserError
+from src.utils import canonical_attr
 
 
 def test_user_revocation_blocks_transform():
     pp, msk = setup()
-    bundle = keygen(pp, msk, uid='veh-004', static_attrs=['role:ambulance', 'dept:traffic'])
+    bundle = keygen(
+        pp,
+        msk,
+        uid='veh-004',
+        static_attrs=['role:ambulance', 'dept:traffic'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
+    )
     state = revoke_user(RevocationState(), 'veh-004')
     ciphertext = encrypt(
         pp,
@@ -31,7 +38,13 @@ def test_user_revocation_blocks_transform():
 
 def test_static_attribute_revocation_blocks_transform():
     pp, msk = setup()
-    bundle = keygen(pp, msk, uid='veh-005', static_attrs=['role:ambulance', 'dept:traffic'])
+    bundle = keygen(
+        pp,
+        msk,
+        uid='veh-005',
+        static_attrs=['role:ambulance', 'dept:traffic'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
+    )
     state = attr_revoke(RevocationState(), 'veh-005', 'dept:traffic', revoke_type='static')
     ciphertext = encrypt(
         pp,
@@ -55,7 +68,13 @@ def test_static_attribute_revocation_blocks_transform():
 
 def test_dynamic_attribute_revocation_blocks_transform():
     pp, msk = setup()
-    bundle = keygen(pp, msk, uid='veh-006', static_attrs=['role:ambulance', 'dept:traffic'])
+    bundle = keygen(
+        pp,
+        msk,
+        uid='veh-006',
+        static_attrs=['role:ambulance', 'dept:traffic'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
+    )
     state = attr_revoke(RevocationState(), 'veh-006', 'region:r1', revoke_type='dynamic')
     ciphertext = encrypt(
         pp,
@@ -79,8 +98,14 @@ def test_dynamic_attribute_revocation_blocks_transform():
 
 def test_certificate_attribute_expiry_blocks_transform():
     pp, msk = setup()
-    bundle = keygen(pp, msk, uid='veh-007', static_attrs=['role:ambulance', 'dept:traffic'])
-    expire_static_attr(bundle.certificate, 'dept:traffic', expired_at=1)
+    bundle = keygen(
+        pp,
+        msk,
+        uid='veh-007',
+        static_attrs=['role:ambulance', 'dept:traffic'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
+    )
+    expire_static_attr(bundle.certificate, canonical_attr('dept:traffic'), expired_at=1)
     ciphertext = encrypt(
         pp,
         message=b'hello-iov',
@@ -104,8 +129,14 @@ def test_certificate_attribute_expiry_blocks_transform():
 
 def test_certificate_attribute_removal_blocks_transform():
     pp, msk = setup()
-    bundle = keygen(pp, msk, uid='veh-008', static_attrs=['role:ambulance', 'dept:traffic'])
-    revoke_static_attr(bundle.certificate, 'dept:traffic')
+    bundle = keygen(
+        pp,
+        msk,
+        uid='veh-008',
+        static_attrs=['role:ambulance', 'dept:traffic'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
+    )
+    revoke_static_attr(bundle.certificate, canonical_attr('dept:traffic'))
     ciphertext = encrypt(
         pp,
         message=b'hello-iov',

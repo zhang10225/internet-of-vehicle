@@ -1,17 +1,43 @@
 from __future__ import annotations
 
-import secrets
 from typing import Iterable
 
 from .cert import issue_certificate
-from .config import DEFAULT_CERT_VALIDITY, DEFAULT_SECURITY_PARAM
-from .types import FinalKey, KeyBundle, MasterSecretKey, PublicParams, RevocationState, TransformKey, UserSecretKey
-from .utils import derive_bytes, normalize_attrs
+from .charm_support import CPabe_BSW07, PairingGroup, ensure_charm_available
+from .config import DEFAULT_CERT_VALIDITY, DEFAULT_DYNAMIC_ATTRS, DEFAULT_SECURITY_PARAM
+from .types import (
+    CharmUnavailableError,
+    FinalKey,
+    KeyBundle,
+    MasterSecretKey,
+    PublicParams,
+    RevocationState,
+    TransformKey,
+    UserSecretKey,
+)
+from .utils import canonical_attr, canonicalize_attrs
 
 
 def setup(security_param: str = DEFAULT_SECURITY_PARAM) -> tuple[PublicParams, MasterSecretKey]:
-    pp = PublicParams(security_param=security_param, system_salt=secrets.token_bytes(32))
-    msk = MasterSecretKey(root_secret=secrets.token_bytes(32))
+    try:
+        ensure_charm_available()
+    except RuntimeError as exc:  # pragma: no cover - depends on local Charm install
+        raise CharmUnavailableError(str(exc)) from exc
+
+    group = PairingGroup(security_param)
+    static_abe = CPabe_BSW07(group)
+    dynamic_abe = CPabe_BSW07(group)
+    static_pk, static_msk = static_abe.setup()
+    dynamic_pk, dynamic_msk = dynamic_abe.setup()
+    pp = PublicParams(
+        security_param=security_param,
+        group=group,
+        static_abe=static_abe,
+        dynamic_abe=dynamic_abe,
+        static_pk=static_pk,
+        dynamic_pk=dynamic_pk,
+    )
+    msk = MasterSecretKey(static_msk=static_msk, dynamic_msk=dynamic_msk)
     return pp, msk
 
 
@@ -24,9 +50,8 @@ def keygen(
     issued_at: int = 0,
     attr_ttls: dict[str, int] | None = None,
 ) -> KeyBundle:
-    del pp
-    static_tuple = normalize_attrs(static_attrs)
-    dynamic_tuple = normalize_attrs(dynamic_attrs or [])
+    static_tuple = canonicalize_attrs(static_attrs)
+    dynamic_tuple = canonicalize_attrs(dynamic_attrs or DEFAULT_DYNAMIC_ATTRS)
     certificate = issue_certificate(
         uid=uid,
         static_attrs=static_tuple,
@@ -34,18 +59,24 @@ def keygen(
         validity=DEFAULT_CERT_VALIDITY,
         attr_ttls=attr_ttls,
     )
+    static_sk = pp.static_abe.keygen(pp.static_pk, msk.static_msk, list(static_tuple))
+    dynamic_sk = pp.dynamic_abe.keygen(pp.dynamic_pk, msk.dynamic_msk, list(dynamic_tuple))
     user_secret_key = UserSecretKey(
         uid=uid,
-        secret_seed=derive_bytes(msk.root_secret, uid, 'user-secret', length=32),
+        static_sk=static_sk,
         static_attrs=frozenset(static_tuple),
         dynamic_attrs=frozenset(dynamic_tuple),
     )
-    link_token = derive_bytes(msk.root_secret, uid, certificate.cert_id, 'link-token', length=32)
-    transform_key = TransformKey(uid=uid, cert_id=certificate.cert_id, link_token=link_token)
+    transform_key = TransformKey(
+        uid=uid,
+        cert_id=certificate.cert_id,
+        dynamic_sk=dynamic_sk,
+        dynamic_attrs=frozenset(dynamic_tuple),
+    )
     final_key = FinalKey(
         uid=uid,
         cert_id=certificate.cert_id,
-        link_token=link_token,
+        static_sk=static_sk,
         issued_static_attrs=frozenset(static_tuple),
     )
     return KeyBundle(
@@ -67,11 +98,12 @@ def attr_revoke(
     attr_name: str,
     revoke_type: str = 'static',
 ) -> RevocationState:
+    token = canonical_attr(attr_name)
     if revoke_type == 'static':
-        revocation_state.revoked_static_attrs.setdefault(uid, set()).add(attr_name)
+        revocation_state.revoked_static_attrs.setdefault(uid, set()).add(token)
         return revocation_state
     if revoke_type == 'dynamic':
-        revocation_state.revoked_dynamic_attrs.setdefault(uid, set()).add(attr_name)
+        revocation_state.revoked_dynamic_attrs.setdefault(uid, set()).add(token)
         return revocation_state
     if revoke_type == 'user':
         return revoke_user(revocation_state, uid)

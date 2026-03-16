@@ -9,7 +9,13 @@ from src.types import IntegrityError, RevocationState
 
 def test_tampered_transformed_ciphertext_fails_integrity_check():
     pp, msk = setup()
-    bundle = keygen(pp, msk, uid='veh-009', static_attrs=['role:ambulance', 'dept:traffic'])
+    bundle = keygen(
+        pp,
+        msk,
+        uid='veh-009',
+        static_attrs=['role:ambulance', 'dept:traffic'],
+        dynamic_attrs=['region:r1', 'timeslot:t1'],
+    )
     ciphertext = encrypt(
         pp,
         message=b'hello-iov',
